@@ -5,6 +5,8 @@ import org.example.utils.IdGenerator;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
+
 
 public class CollectionManager {
     private LinkedHashMap<Integer, Route> collection;
@@ -27,6 +29,7 @@ public class CollectionManager {
         return false;
     }
 
+
     public boolean update(Integer id, Route route){
         if (collection.containsKey(id)){
             collection.replace(id, route);
@@ -35,12 +38,11 @@ public class CollectionManager {
         return false;
     }
 
+
     public boolean removeByKey(Integer id){
-        if (collection.containsKey(id)){
-            collection.remove(id);
-            return true;
-        }
-        return false;
+        int sizeBefore = collection.size();
+        collection.entrySet().removeIf(entry -> entry.getKey().equals(id));
+        return collection.size() < sizeBefore;
     }
 
     public void clear(){
@@ -84,34 +86,15 @@ public class CollectionManager {
     }
 
     public double averageOfDistance(){
-        double sum = 0f;
-        for (Route r: collection.values()){
-            sum += r.getDistance();
-        }
-        if (collection.isEmpty()){
-            return 0.0;
-        }
-        return sum/collection.size();
+        return collection.values().stream().mapToDouble(Route::getDistance).average().orElse(0.0);
     }
 
-    public int countByDistance(double distance){
-        int counter = 0;
-        for (Route r: collection.values()){
-            if (Math.abs(distance - r.getDistance()) < 0.00000001){
-                counter += 1;
-            }
-        }
-        return counter;
+    public long countByDistance(double distance){
+        return (collection.values().stream().filter(route -> route.getDistance() == distance).count());
     }
 
-    public ArrayList<Route> filterLessThanDistance(double distance){
-        ArrayList<Route> distances = new ArrayList<>();
-        for (Route route: collection.values()){
-            if (route.getDistance() < distance){
-                distances.add(route);
-            }
-        }
-        return distances;
+    public List<Route> filterLessThanDistance(double distance){
+        return collection.values().stream().filter(route -> route.getDistance() < distance).collect(Collectors.toList());
     }
 
     public void info(){
