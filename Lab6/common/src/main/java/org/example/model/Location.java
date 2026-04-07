@@ -3,7 +3,7 @@ package org.example.model;
 import java.io.Serial;
 import java.io.Serializable;
 
-public class Location implements Serializable {
+public class Location implements Comparable<Location>, Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
     private double x;
@@ -23,6 +23,11 @@ public class Location implements Serializable {
         this.intY = y;
         this.longZ = z;
         this.name = name;
+    }
+
+    @Override
+    public int compareTo(Location other) {
+        return this.name.compareTo(other.getName());
     }
 
     public void setX(double x) {

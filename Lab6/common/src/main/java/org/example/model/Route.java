@@ -28,7 +28,7 @@ public class Route implements Comparable<Route>, Serializable {
 
     @Override
     public int compareTo(Route other) {
-        return this.coordinates.compareTo(other.getCoordinates());
+        return this.to.compareTo(other.getTo());
     }
 
     public Integer getId() {
