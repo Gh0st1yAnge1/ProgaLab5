@@ -1,37 +1,45 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.manager.ServerCommandExecutor;
 import org.example.model.Route;
-import org.example.utils.RouteBuilder;
+import org.example.request_and_response.CommandType;
+import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 public class ReplaceIfLower implements Command {
 
     private final CollectionManager collectionManager;
-    private final RouteBuilder routeBuilder;
+    private final ServerCommandExecutor serverCommandExecutor;
 
-    public ReplaceIfLower(CollectionManager collectionManager, RouteBuilder routeBuilder){
+    public ReplaceIfLower(CollectionManager collectionManager, ServerCommandExecutor serverCommandExecutor){
         this.collectionManager = collectionManager;
-        this.routeBuilder = routeBuilder;
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1) {
-            System.out.println("Usage: replace_if_lower <key>");
-            return;
+        if (arg == null || arg .isBlank()) {
+            return new Response(false, "Usage: replace_if_lower <key>", null);
         }
 
+        if (route == null){
+            return new Response(false, "Route must not be null", null);
+        }
+
+        int id;
         try{
-            Integer id = Integer.parseInt(args[0]);
-            Route route = routeBuilder.buildRoute();
-            if (collectionManager.replaceIfLower(id, route)){
-                System.out.println("Element replaced.");
-            } else {
-                System.out.println("New element is more than old or they're equals.");
-            }
+            id = Integer.parseInt(arg);
         }catch (NumberFormatException ex){
-            System.out.println("Key must be integer.");
+           return new Response(false, "Key must be integer.", null);
+        }
+
+        if (collectionManager.replaceIfLower(id, route)){
+            serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+            return  new Response(true, "Element removed!", null);
+        } else {
+            return  new Response(true, "New element is more than old or they're equals.", null);
         }
 
     }

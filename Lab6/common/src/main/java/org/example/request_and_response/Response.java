@@ -4,9 +4,9 @@ import org.example.model.Route;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.LinkedHashMap;
+import java.util.List;
 
-public record Response(boolean success, String message, LinkedHashMap<Integer, Route> collection)  implements Serializable {
+public record Response(boolean success, String message, List<Route> collection)  implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 }

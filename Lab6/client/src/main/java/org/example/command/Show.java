@@ -10,14 +10,4 @@ public class Show implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.SHOW, arg, null);
     }
-
-    @Override
-    public String getName() {
-        return "show";
-    }
-
-    @Override
-    public String getDescription() {
-        return "shows all collection elements";
-    }
 }

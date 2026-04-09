@@ -10,14 +10,4 @@ public class ExecuteScript implements Command{
     public Request execute(String arg) {
         return new Request(CommandType.EXECUTE_SCRIPT, arg, null);
     }
-
-    @Override
-    public String getName() {
-        return "execute_script";
-    }
-
-    @Override
-    public String getDescription() {
-        return "executes script";
-    }
 }

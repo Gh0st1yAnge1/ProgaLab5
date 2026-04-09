@@ -1,6 +1,8 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.model.Route;
+import org.example.request_and_response.Response;
 
 public class Info implements Command {
     private final CollectionManager collectionManager;
@@ -10,13 +12,12 @@ public class Info implements Command {
     }
 
     @Override
-    public void execute(String[] args)
+    public Response execute(String arg, Route route)
     {
-        if (args.length != 0){
-            System.out.println("Usage: info");
-            return;
+        if (arg != null){
+            return new Response(false, "Usage: info", null);
         }
-        collectionManager.info();
+        return new Response(true, collectionManager.info(), null) ;
     }
 
     @Override

@@ -2,6 +2,8 @@ package org.example.command;
 
 import org.example.manager.CollectionManager;
 import org.example.model.Route;
+import org.example.request_and_response.Response;
+import java.util.List;
 
 public class FilterLessThanDistance implements Command {
 
@@ -12,21 +14,21 @@ public class FilterLessThanDistance implements Command {
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1){
-            System.out.println("Usage: filter_less_than_distance <distance>");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false, "Usage: filter_less_than_distance <distance>", null);
         }
 
+        List<Route> out;
         try{
-            double distance = Double.parseDouble(args[0]);
-            for (Route route: collectionManager.filterLessThanDistance(distance)){
-                System.out.println(route);
-            }
+            double distance = Double.parseDouble(arg);
+            out = collectionManager.filterLessThanDistance(distance);
         } catch (NumberFormatException ex){
-            System.out.println("Distance must be double");
+            return new Response(false, "Usage: filter_less_than_distance <distance>", null);
         }
+
+        return new Response(true, "There are routes, you have got:\n", out);
 
     }
 

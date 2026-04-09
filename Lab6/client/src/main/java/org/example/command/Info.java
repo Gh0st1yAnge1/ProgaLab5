@@ -9,14 +9,4 @@ public class Info implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.INFO, arg, null);
     }
-
-    @Override
-    public String getName() {
-        return "info";
-    }
-
-    @Override
-    public String getDescription() {
-        return "shows info about collection";
-    }
 }

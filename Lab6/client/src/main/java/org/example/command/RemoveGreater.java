@@ -17,14 +17,4 @@ public class RemoveGreater implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.REMOVE_GREATER, arg, routeBuilder.buildRoute());
     }
-
-    @Override
-    public String getName() {
-        return "remove_greater";
-    }
-
-    @Override
-    public String getDescription() {
-        return "removes all collection elements,\nwho is more than inserted";
-    }
 }

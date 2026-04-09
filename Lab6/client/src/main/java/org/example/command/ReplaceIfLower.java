@@ -17,14 +17,4 @@ public class ReplaceIfLower implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.REPLACE_IF_LOWER, arg, routeBuilder.buildRoute());
     }
-
-    @Override
-    public String getName() {
-        return "replace_if_lower";
-    }
-
-    @Override
-    public String getDescription() {
-        return "replaces element using a key,\nif new value is less than old";
-    }
 }

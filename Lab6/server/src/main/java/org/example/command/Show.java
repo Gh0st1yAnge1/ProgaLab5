@@ -2,6 +2,7 @@ package org.example.command;
 
 import org.example.manager.CollectionManager;
 import org.example.model.Route;
+import org.example.request_and_response.Response;
 
 public class Show implements Command {
 
@@ -12,16 +13,13 @@ public class Show implements Command {
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 0){
-            System.out.println("Usage: show");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false, "Usage: show", null);
         }
 
-        for (Route route: collectionManager.show().values()){
-            System.out.println(route);
-        }
+        return new Response(true, "All available routes:\n", collectionManager.showCollection());
     }
 
     @Override

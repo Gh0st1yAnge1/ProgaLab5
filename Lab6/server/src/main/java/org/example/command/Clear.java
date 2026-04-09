@@ -1,30 +1,28 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
-import org.example.manager.CommandManager;
-import org.example.util.IdGenerator;
+import org.example.model.Route;
+import org.example.request_and_response.Response;
+import org.example.utils.IdGenerator;
 
 public class Clear implements Command{
 
     private final CollectionManager collectionManager;
-    private final CommandManager commandManager;
 
-    public Clear(CollectionManager collectionManager, CommandManager commandManager){
+    public Clear(CollectionManager collectionManager){
         this.collectionManager = collectionManager;
-        this.commandManager = commandManager;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 0){
-            System.out.println("Usage: clear");
-            return;
+        if (arg != null){
+            return new Response(false, "Usage: clear", null);
         }
 
         collectionManager.clear();
         IdGenerator.reset();
-        System.out.println("Successfully cleared!");
+        return new Response(true, "Successfully cleared!", null);
     }
 
     @Override

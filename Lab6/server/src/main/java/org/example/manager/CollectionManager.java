@@ -5,7 +5,6 @@ import org.example.utils.IdGenerator;
 
 import java.time.LocalDate;
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 public class CollectionManager {
@@ -15,10 +14,6 @@ public class CollectionManager {
     public CollectionManager(){
         this.collection = new LinkedHashMap<>();
         this.initializationDate = LocalDate.now();
-    }
-
-    public boolean checkKey(Integer id){
-        return collection.containsKey(id);
     }
 
     public boolean insert(Integer id, Route route){
@@ -51,6 +46,10 @@ public class CollectionManager {
 
     public Map<Integer, Route> show(){
         return Collections.unmodifiableMap(collection);
+    }
+
+    public List<Route> showCollection(){
+        return new ArrayList<>(collection.values());
     }
 
     public int removeGreater(Route route){
@@ -94,12 +93,10 @@ public class CollectionManager {
     }
 
     public List<Route> filterLessThanDistance(double distance){
-        return collection.values().stream().filter(route -> route.getDistance() < distance).collect(Collectors.toList());
+        return collection.values().stream().filter(route -> route.getDistance() < distance).toList();
     }
 
-    public void info(){
-        System.out.println("Collection type: LinkedHashMap");
-        System.out.println("Size: " + collection.size());
-        System.out.println("Initialization date: " + initializationDate);
+    public String info(){
+        return "Collection type: LinkedHashMap\n" + "Size: " + collection.size() + "\n" + "Initialization date: " + initializationDate;
     }
 }

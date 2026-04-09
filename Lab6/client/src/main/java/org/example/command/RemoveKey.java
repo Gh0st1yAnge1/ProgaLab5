@@ -9,14 +9,4 @@ public class RemoveKey implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.REMOVE_KEY, arg, null);
     }
-
-    @Override
-    public String getName() {
-        return "remove_key";
-    }
-
-    @Override
-    public String getDescription() {
-        return "removes element using a key";
-    }
 }

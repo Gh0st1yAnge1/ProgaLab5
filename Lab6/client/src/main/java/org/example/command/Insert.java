@@ -17,14 +17,4 @@ public class Insert implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.INSERT, arg, routeBuilder.buildRoute());
     }
-
-    @Override
-    public String getName() {
-        return "insert";
-    }
-
-    @Override
-    public String getDescription() {
-        return "adds new element using a key";
-    }
 }

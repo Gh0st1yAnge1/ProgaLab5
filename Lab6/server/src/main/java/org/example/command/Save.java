@@ -2,6 +2,9 @@ package org.example.command;
 
 import org.example.manager.CollectionManager;
 import org.example.manager.FileManager;
+import org.example.model.Route;
+import org.example.request_and_response.Response;
+
 import java.util.LinkedHashMap;
 
 public class Save implements Command {
@@ -15,13 +18,22 @@ public class Save implements Command {
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 0){
-            System.out.println("Usage: save");
-            return;
+        if (arg != null){
+            return new Response(false, "Usage: save", null);
         }
-        System.out.println(fileManager.saveCollection(new LinkedHashMap<>(collectionManager.show())));
+
+        String answer = fileManager.saveCollection(new LinkedHashMap<>(collectionManager.show()));
+        if (answer.equals("File path is not found.")){
+            return new Response(false, "File path is not found.", null);
+        }
+
+        if (answer.equals("Error writing file.")){
+            return new Response(false, "Error writing file.", null);
+        }
+
+        return new Response(true, answer, null);
     }
 
     @Override

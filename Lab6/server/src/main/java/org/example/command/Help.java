@@ -1,30 +1,34 @@
 package org.example.command;
 
-import org.example.manager.CommandManager;
+import org.example.manager.ServerCommandExecutor;
+import org.example.model.Route;
+import org.example.request_and_response.Response;
 
 public class Help implements Command {
 
-    private final CommandManager commandManager;
+    private final ServerCommandExecutor serverCommandExecutor;
 
-    public Help(CommandManager commandManager){
-        this.commandManager = commandManager;
+    public Help(ServerCommandExecutor serverCommandExecutor){
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 0){
-            System.out.println("Usage: help");
-            return;
+        if (arg != null){
+            return new Response(false, "Usage: help", null);
         }
 
-        System.out.println("Available commands:");
-        for (Command command: commandManager.getCommands().values()){
-            System.out.println(" ");
-            System.out.println("--" + command.getName() + "--");
-            System.out.println(command.getDescription());
+        String answer = "";
+        answer += "Available commands:\n";
+        for (Command command: serverCommandExecutor.getCommands().values()){
+            answer += " \n";
+            answer += "--" + command.getName() + "--\n";
+            answer += command.getDescription()+ "\n";
         }
+
+        return new Response(true, answer, null);
     }
 
     @Override

@@ -1,5 +1,6 @@
-package org.example;
+package org.example.manager;
 
+import org.example.ClientApp;
 import org.example.command.Command;
 
 import java.io.File;
@@ -7,21 +8,21 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 import org.example.command.*;
 import org.example.exceptions.InputCancelledException;
-import org.example.manager.InputManager;
 import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.request_and_response.Response;
 import org.example.utils.RouteBuilder;
 
-public class CommandManager {
+public class ClientCommandManager {
     private final Map<String, Command> commands = new LinkedHashMap<>();
     private final InputManager inputManager;
     private final Set<String> scriptStack = new HashSet<>();
 
-    public CommandManager(InputManager inputManager) {
+    public ClientCommandManager(InputManager inputManager) {
         this.inputManager = inputManager;
         RouteBuilder routeBuilder = new RouteBuilder(inputManager);
 
+        commands.put("average_of_distance", new AverageOfDistance());
         commands.put("help", new Help());
         commands.put("exit", new Exit());
         commands.put("info", new Info());
@@ -38,7 +39,7 @@ public class CommandManager {
         commands.put("remove_greater", new RemoveGreater(routeBuilder));
     }
 
-    public Request execute(String input){
+    public Request execute(String input, SocketChannel socketChannel){
 
         if (input == null || input.trim().isEmpty()){
             return null;
@@ -56,6 +57,7 @@ public class CommandManager {
         }
 
         if (commandName.equals("execute_script")){
+            executeScript(arg, socketChannel);
         }
 
         try{
@@ -98,7 +100,7 @@ public class CommandManager {
                     if (line.trim().isEmpty()) continue;
                     System.out.println("> " + line);
 
-                    Request request = execute(line);
+                    Request request = execute(line, socketChannel);
 
                     if (request == null){
                         continue;

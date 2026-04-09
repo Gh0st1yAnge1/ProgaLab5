@@ -10,14 +10,4 @@ public class Help implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.HELP, arg, null);
     }
-
-    @Override
-    public String getName() {
-        return "help";
-    }
-
-    @Override
-    public String getDescription() {
-        return "shows available commands";
-    }
 }

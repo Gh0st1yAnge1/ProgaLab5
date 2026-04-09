@@ -1,6 +1,8 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.model.Route;
+import org.example.request_and_response.Response;
 
 public class AverageOfDistance implements Command{
 
@@ -11,17 +13,17 @@ public class AverageOfDistance implements Command{
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 0){
-            System.out.println("Usage: average_of_distance");
-            return;
+        if (arg != null){
+            return new Response(false, "Usage: average_of_distance", null);
         }
 
-        System.out.println("Average distance: " + collectionManager.averageOfDistance());
+        double avgDist = collectionManager.averageOfDistance();
+
+        return new Response(true, "Average distance: " + avgDist, null);
     }
 
-    @Override
     public String getName() {
         return "average_of_distance";
     }

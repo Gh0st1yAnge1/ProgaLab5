@@ -1,37 +1,45 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.manager.ServerCommandExecutor;
 import org.example.model.Route;
-import org.example.utils.RouteBuilder;
+import org.example.request_and_response.CommandType;
+import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 public class Update implements Command {
 
     private final CollectionManager collectionManager;
-    private final RouteBuilder routeBuilder;
+    private final ServerCommandExecutor serverCommandExecutor;
 
-    public Update(CollectionManager collectionManager, RouteBuilder routeBuilder){
+    public Update(CollectionManager collectionManager, ServerCommandExecutor serverCommandExecutor){
         this.collectionManager = collectionManager;
-        this.routeBuilder = routeBuilder;
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1){
-            System.out.println("Usage: update <key>");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false,"Usage: update <key>", null);
         }
 
+        if (route == null){
+            return new Response(false, "Route must not be null", null);
+        }
+
+        int id;
         try{
-            Integer id = Integer.parseInt(args[0]);
-            Route route = routeBuilder.buildRoute();
-            if (collectionManager.update(id, route)){
-                System.out.println("Element's updated!");
-            } else {
-                System.out.println("Key doesn't exists.");
-            }
+            id = Integer.parseInt(arg);
         } catch (NumberFormatException ex){
-            System.out.println("Key must be integer.");
+            return new Response(false, "Key must be integer.", null);
+        }
+
+        if (collectionManager.update(id, route)){
+            serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+            return new Response(true, "Element updated!", null);
+        } else {
+            return new Response(false, "Key does not exists", null);
         }
 
     }

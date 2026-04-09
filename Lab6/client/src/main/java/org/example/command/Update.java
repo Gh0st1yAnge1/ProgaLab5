@@ -17,14 +17,4 @@ public class Update implements Command {
     public Request execute(String arg) {
         return new Request(CommandType.UPDATE, arg, routeBuilder.buildRoute());
     }
-
-    @Override
-    public String getName() {
-        return "update";
-    }
-
-    @Override
-    public String getDescription() {
-        return "updates element using a key";
-    }
 }

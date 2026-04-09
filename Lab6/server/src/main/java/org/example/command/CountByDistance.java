@@ -1,6 +1,8 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.model.Route;
+import org.example.request_and_response.Response;
 
 public class CountByDistance implements Command{
 
@@ -11,20 +13,23 @@ public class CountByDistance implements Command{
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1){
-            System.out.println("Usage: count_by_distance <distance>");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false, "Usage: count_by_distance <distance>", null);
         }
+
+        double distance;
+        long count;
 
         try{
-            double distance = Double.parseDouble(args[0]);
-            System.out.println("Answer: " + collectionManager.countByDistance(distance));
+            distance = Double.parseDouble(arg);
+            count =  collectionManager.countByDistance(distance);
         } catch (NumberFormatException ex){
-            System.out.println("Distance must be double.");
+            return new Response(false, "Usage: count_by_distance <distance>", null);
         }
 
+        return new Response(true, "There are " + count + " objects with same distance", null);
     }
 
     @Override

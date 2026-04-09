@@ -9,14 +9,4 @@ public class Exit implements Command {
     public Request execute(String args) {
         return new Request(CommandType.EXIT, args, null);
     }
-
-    @Override
-    public String getName() {
-        return "exit";
-    }
-
-    @Override
-    public String getDescription() {
-        return "terminates program.";
-    }
 }

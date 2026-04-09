@@ -21,7 +21,7 @@ public class ClientApp {
         Runtime.getRuntime().addShutdownHook(new Thread(TerminalManager::disableRawMode));
 
         InputManager inputManager = new InputManager();
-        CommandManager commandManager = new CommandManager(inputManager);
+        ClientCommandManager commandManager = new ClientCommandManager(inputManager);
         SocketChannel socketChannel = null;
 
         try{
@@ -45,16 +45,21 @@ public class ClientApp {
                 String input = inputManager.readline();
 
                 try {
-                    Request request = commandManager.execute(input);
+                    Request request = commandManager.execute(input, socketChannel);
 
                     if (request == null){
                         continue;
                     }
 
+                    if (request.commandType() == CommandType.EXIT){
+                        commandManager.executeScript(request.argument(), socketChannel);
+                        isRunning = false;
+                    }
+
                     if (request.commandType() == CommandType.EXECUTE_SCRIPT){
                         commandManager.executeScript(request.argument(), socketChannel);
-
                     }
+
 
                     //to server
                     sendRequest(socketChannel, request);

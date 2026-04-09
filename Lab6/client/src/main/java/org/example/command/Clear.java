@@ -9,13 +9,4 @@ public class Clear implements Command{
     public Request execute(String arg) {
         return new Request(CommandType.CLEAR, arg, null);
     }
-    @Override
-    public String getName() {
-        return "clear";
-    }
-
-    @Override
-    public String getDescription() {
-        return "clears collection";
-    }
 }

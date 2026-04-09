@@ -1,36 +1,44 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.manager.ServerCommandExecutor;
+import org.example.model.Route;
+import org.example.request_and_response.CommandType;
+import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 public class RemoveGreaterKey implements Command {
 
+    private final ServerCommandExecutor serverCommandExecutor;
     private final CollectionManager collectionManager;
 
-    public RemoveGreaterKey(CollectionManager collectionManager){
+    public RemoveGreaterKey(CollectionManager collectionManager, ServerCommandExecutor serverCommandExecutor){
         this.collectionManager = collectionManager;
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1){
-            System.out.println("Usage: remove_greater_key <key>");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false, "Usage: remove_greater_key <key>", null);
         }
 
+        int id;
         try{
-            Integer id = Integer.parseInt(args[0]);
-            int result = collectionManager.removeGreaterKey(id);
-            if(result == 0){
-                System.out.println("Collection size didn't change.");
-            } else {
-                System.out.println("Successfully removed!");
-                System.out.println("Number of removed elements: " + result);
-            }
+            id = Integer.parseInt(arg);
         } catch (NumberFormatException ex){
-            System.out.println("Key must be integer.");
+            return new Response(false, "Key must be integer.", null);
         }
 
+        int result = collectionManager.removeGreaterKey(id);
+
+        if(result == 0){
+            return new Response(true, "Collection size didn't change.", null);
+        }
+
+        serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+        return new Response(true, "Successfully removed!" + "Number of removed elements: " + result, null);
     }
 
     @Override

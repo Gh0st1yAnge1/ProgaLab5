@@ -1,32 +1,41 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.manager.ServerCommandExecutor;
+import org.example.model.Route;
+import org.example.request_and_response.CommandType;
+import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 public class RemoveKey implements Command {
 
-    private  final CollectionManager collectionManager;
+    private final CollectionManager collectionManager;
+    private final ServerCommandExecutor serverCommandExecutor;
 
-    public RemoveKey(CollectionManager collectionManager){
+    public RemoveKey(CollectionManager collectionManager, ServerCommandExecutor serverCommandExecutor){
         this.collectionManager = collectionManager;
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1){
-            System.out.println("Usage: remove_key <key>");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false, "Usage: remove_key <key>", null);
         }
 
+        int id;
         try{
-            Integer id = Integer.parseInt(args[0]);
-            if (collectionManager.removeByKey(id)){
-                System.out.println("Element's removed.");
-            } else {
-                System.out.println("Key doesn't exist.");
-            }
+            id = Integer.parseInt(arg);
         } catch (NumberFormatException ex){
-            System.out.println("Key must be integer.");
+            return new Response(false, "Key must be integer.", null);
+        }
+
+        if (collectionManager.removeByKey(id)){
+            serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+            return new Response(true, "Successfully removed!", null);
+        } else {
+            return new Response(false, "Key does not exists", null);
         }
 
     }

@@ -1,40 +1,41 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
-import org.example.manager.CommandManager;
+import org.example.manager.ServerCommandExecutor;
 import org.example.model.Route;
-import org.example.utils.RouteBuilder;
+import org.example.request_and_response.CommandType;
+import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 public class RemoveGreater implements Command {
 
     private final CollectionManager collectionManager;
-    private final RouteBuilder routeBuilder;
-    private final CommandManager commandManager;
+    private final ServerCommandExecutor serverCommandExecutor;
 
-    public RemoveGreater(CollectionManager collectionManager, RouteBuilder routeBuilder, CommandManager commandManager){
+    public RemoveGreater(CollectionManager collectionManager, ServerCommandExecutor serverCommandExecutor){
         this.collectionManager = collectionManager;
-        this.routeBuilder = routeBuilder;
-        this.commandManager = commandManager;
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 0){
-            System.out.println("Usage: remove_greater");
-            return;
+        if (arg != null){
+            return new Response(false, "Usage: remove_greater", null);
         }
 
-        Route route = routeBuilder.buildRoute();
+        if (route == null){
+            return new Response(false, "Route must not be null", null);
+        }
+
         int result = collectionManager.removeGreater(route);
 
         if(result == 0){
-            System.out.println("Collection size didn't change.");
-        } else {
-            System.out.println("Successfully removed!");
-            System.out.println("Number of removed elements: " + result);
-            commandManager.execute("save");
+            return new Response(true, "Collection size didn't change.", null);
         }
+
+        serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+        return  new Response(true, "Successfully removed!" + "Number of removed elements: " + result, null);
     }
 
     @Override

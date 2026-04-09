@@ -1,40 +1,46 @@
 package org.example.command;
 
 import org.example.manager.CollectionManager;
+import org.example.manager.ServerCommandExecutor;
 import org.example.model.Route;
-import org.example.utils.RouteBuilder;
+import org.example.request_and_response.CommandType;
+import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 public class Insert implements Command {
     private final CollectionManager collectionManager;
-    private final RouteBuilder routeBuilder;
+    private final ServerCommandExecutor serverCommandExecutor;
 
-    public Insert(CollectionManager collectionManager,
-                  RouteBuilder routeBuilder){
+    public Insert(CollectionManager collectionManager, ServerCommandExecutor serverCommandExecutor) {
         this.collectionManager = collectionManager;
-        this.routeBuilder = routeBuilder;
+        this.serverCommandExecutor = serverCommandExecutor;
     }
 
     @Override
-    public void execute(String[] args) {
+    public Response execute(String arg, Route route) {
 
-        if (args.length != 1){
-            System.out.println("Usage: insert <key>");
-            return;
+        if (arg == null || arg.isBlank()){
+            return new Response(false, "Usage: insert <key>", null);
         }
 
+        if (route == null){
+            return new Response(false, "Route must not be null", null);
+        }
+
+        int key;
         try {
-            Integer key = Integer.parseInt(args[0]);
-            if (collectionManager.checkKey(key)){
-                System.out.println("Key already exists.");
-                return;
-            }
-
-            Route route = routeBuilder.buildRoute();
-            collectionManager.insert(key, route);
-            System.out.println("Element inserted.");
-
+            key = Integer.parseInt(arg);
         } catch (NumberFormatException ex){
-            System.out.println("Key must be integer.");
+            return new Response(false, "Key must be integer.", null);
+        }
+
+        boolean isInserted = collectionManager.insert(key, route);
+
+        if (isInserted){
+            serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+            return new Response(true, "Element inserted", null);
+        } else {
+            return new Response(false, "Key already exists", null);
         }
     }
 
