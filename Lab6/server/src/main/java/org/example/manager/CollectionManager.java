@@ -5,6 +5,7 @@ import org.example.utils.IdGenerator;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class CollectionManager {
@@ -49,8 +50,19 @@ public class CollectionManager {
     }
 
     public List<Route> showCollection(){
-        return new ArrayList<>(collection.values());
+            return collection.values()
+                    .stream()
+                    .sorted(Comparator.comparing(Route::getTo, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .collect(Collectors.toList());
     }
+
+    public void load(LinkedHashMap<Integer, Route> loadedCollecrion){
+        collection.clear();
+        if (loadedCollecrion != null){
+            collection.putAll(loadedCollecrion);
+        }
+    }
+
 
     public int removeGreater(Route route){
         int sizeBefore = collection.size();

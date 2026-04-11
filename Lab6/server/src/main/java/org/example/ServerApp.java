@@ -4,12 +4,14 @@ import org.example.manager.CollectionManager;
 import org.example.manager.FileManager;
 import org.example.manager.ServerCommandExecutor;
 import org.example.model.Route;
+import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.request_and_response.Response;
 import org.example.utils.LoggerUtil;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -17,6 +19,9 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,24 +35,75 @@ public class ServerApp
     private static FileManager fileManager;
     private static ServerCommandExecutor serverCommandExecutor;
 
-    public static void main( String[] args ){
+    public static void main(String[] args ){
         logger.setLevel(Level.INFO);
         logger.info("=== LOADING SERVER ===");
 
         String filePath = System.getenv("FILE_PATH");
         if (filePath == null || filePath.trim().isEmpty()){
-            logger.severe("ERROR: the env does not set.");
+            logger.severe("ERROR: FILE_PATH environmental variable is not set.");
             return;
         }
         logger.info("File path: " + filePath);
 
         fileManager = new FileManager(filePath);
         collectionManager = new CollectionManager();
+        serverCommandExecutor = new ServerCommandExecutor(collectionManager, fileManager);
+
 
         logger.info("Try to load collection file.");
-        try{
-            LinkedHashMap<Integer, Route> loadedDatd = fileManager.loadCollection();
-            if (loadedDatd == null)
+        LinkedHashMap<Integer, Route> loadedData = fileManager.loadCollection();
+        collectionManager.load(loadedData);
+        logger.info("Collection loaded. Elements count: " + loadedData.size());
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            Response saveResult = serverCommandExecutor.execute(
+                    new Request(CommandType.SAVE_SERVER, null,null)
+            );
+            logger.info("Shutdown save status: " + saveResult.message());
+        }));
+    }
+
+    private static void runServer(){
+        try (Selector selector = Selector.open();
+             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()){
+
+            serverSocketChannel.configureBlocking(false);
+            serverSocketChannel.bind(new InetSocketAddress(PORT));
+            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+
+            logger.info("Server started on port: " + PORT);
+
+            while (true){
+                selector.select();
+                Set<SelectionKey> selectionKeys = selector.selectedKeys();
+                var iterator = selectionKeys.iterator();
+                while (iterator.hasNext()){
+                    SelectionKey key = iterator.next();
+                    iterator.remove();
+
+                    if (!key.isValid()){
+                        continue;
+                    }
+
+                    try {
+                        if (key.isAcceptable()){
+                            handleAccept(key, selector);
+                        }
+
+                        if (key.isReadable()){
+                            handleRead(key);
+                        }
+                    } catch (IOException | ClassNotFoundException e){
+                        logger.severe("Error while handling client event: " + e.getMessage());
+                        closeClient(key);
+                    }
+
+                }
+            }
+
+        } catch (IOException e) {
+            logger.severe("Server startup error: " + e.getMessage());
         }
     }
 
@@ -55,58 +111,68 @@ public class ServerApp
         ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
         SocketChannel clientChannel = serverChannel.accept();
 
-        if (clientChannel != null){
+        if (clientChannel != null) {
             clientChannel.configureBlocking(false);
 
-            clientChannel.register(selector, SelectionKey.OP_READ);
+            clientChannel.register(selector, SelectionKey.OP_READ); new ClientSession();
             logger.info("New connection from: " + clientChannel.getRemoteAddress());
         }
     }
 
 
-    private static void handleRead(SelectionKey key) throws  IOException, ClassNotFoundException{
+    private static void handleRead(SelectionKey key) throws IOException, ClassNotFoundException{
         SocketChannel clientChannel = (SocketChannel) key.channel();
+        ClientSession session = (ClientSession) key.attachment();
+        if (session == null){
+            session = new ClientSession();
+            key.attach(session);
+        }
 
-        ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+        if (session.lengthBuffer.hasRemaining()){
+            int bytesRead = clientChannel.read(session.lengthBuffer);
+            if (bytesRead == -1){
+                closeClient(key);
+                return;
+            }
 
-        int bytesRead = clientChannel.read(lengthBuffer);
+            if (session.lengthBuffer.hasRemaining()){
+                return;
+            }
+            session.lengthBuffer.flip();
+            int dataLength = session.lengthBuffer.getInt();
+            if (dataLength < 0 || dataLength > 10_000_000){
+                logger.warning("Invalid request size from " + clientChannel.getRemoteAddress() + ": " + dataLength);
+                closeClient(key);
+                return;
+            }
 
+            session.databuffer = ByteBuffer.allocate(dataLength);
+        }
+
+        Objects.requireNonNull(session.databuffer, "Data buffer must be initialized");
+        int bytesRead = clientChannel.read(session.databuffer);
         if (bytesRead == -1){
-            logger.info("Client disconnected:" + clientChannel.getRemoteAddress());
-            key.cancel();
-            clientChannel.close();
+            closeClient(key);
             return;
         }
 
-        if (lengthBuffer.hasRemaining()){
+        if (session.databuffer.hasRemaining()){
             return;
         }
 
-        lengthBuffer.flip();
-        int dataLength = lengthBuffer.getInt();
-
-        ByteBuffer dataBuffer = ByteBuffer.allocate(dataLength);
-        while (dataBuffer.hasRemaining()){
-            if (clientChannel.read(dataBuffer) == -1) break;
-        }
-
-        if (dataBuffer.hasRemaining()){
-            return;
-        }
-
-        dataBuffer.flip();
-        byte[] data = new byte[dataLength];
-        dataBuffer.get(data);
+        session.databuffer.flip();
+        byte[] data = new byte[session.databuffer.remaining()];
+        session.databuffer.get(data);
 
         ByteArrayInputStream bais = new ByteArrayInputStream(data);
         ObjectInputStream ois = new ObjectInputStream(bais);
         Request request = (Request) ois.readObject();
 
-        logger.info("Got request: " + request.commandType() + " from " + clientChannel.getRemoteAddress());
 
         Response response = serverCommandExecutor.execute(request);
-
+        logger.info("Got request: " + request.commandType() + " from " + clientChannel.getRemoteAddress());
         sendResponse(clientChannel, response);
+        session.reset();
     }
 
     private static void sendResponse(SocketChannel channel, Response response) throws IOException {
@@ -122,11 +188,28 @@ public class ServerApp
         buffer.put(data);
         buffer.flip();
 
-        while (buffer.hasRemaining()){
+        while (buffer.hasRemaining()) {
             channel.write(buffer);
         }
 
         logger.fine("Response is sent to client.");
 
+    }
+
+    private static void closeClient(SelectionKey key) throws IOException{
+        SocketChannel channel = (SocketChannel) key.channel();
+        logger.info("Client disconnected: " + channel.getRemoteAddress());
+        key.cancel();
+        channel.close();
+    }
+
+    private static class ClientSession{
+        private ByteBuffer lengthBuffer  = ByteBuffer.allocate(4);
+        private ByteBuffer databuffer;
+
+        private void reset(){
+            this.lengthBuffer = ByteBuffer.allocate(4);
+            this.databuffer = null;
+        }
     }
 }

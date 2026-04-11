@@ -15,7 +15,7 @@ public class Show implements Command {
     @Override
     public Response execute(String arg, Route route) {
 
-        if (arg == null || arg.isBlank()){
+        if (arg != null){
             return new Response(false, "Usage: show", null);
         }
 
