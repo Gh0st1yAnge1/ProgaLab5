@@ -63,7 +63,6 @@ public class FileManager {
         if (filePath == null){
             return ("File path is not found.");
         }
-        File file = new File(filePath);
 
         try(BufferedOutputStream bos = new BufferedOutputStream(
                 new FileOutputStream(filePath))){

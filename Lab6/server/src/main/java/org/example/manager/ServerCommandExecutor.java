@@ -2,6 +2,7 @@ package org.example.manager;
 
 import org.example.command.*;
 import org.example.request_and_response.Request;
+import org.example.request_and_response.Response;
 
 import java.util.*;
 
@@ -9,10 +10,7 @@ public class ServerCommandExecutor {
 
     private final Map<String, Command> commands = new LinkedHashMap<>();
 
-    public ServerCommandExecutor(){
-        String filePath = System.getenv("FILE_NAME");
-        FileManager fileManager = new FileManager(filePath);
-        CollectionManager collectionManager = new CollectionManager();
+    public ServerCommandExecutor(CollectionManager collectionManager, FileManager fileManager){
         commands.put("average_of_distance", new AverageOfDistance(collectionManager));
         commands.put("help", new Help(this));
         commands.put("info", new Info(collectionManager));
@@ -29,10 +27,13 @@ public class ServerCommandExecutor {
         commands.put("save", new Save(fileManager,collectionManager));
     }
 
-    public void execute(Request request){
+    public Response execute(Request request){
         String name = request.commandType().toString().toLowerCase();
         Command command = commands.get(name);
-        command.execute(request.argument(), request.route());
+        if (command == null){
+            return new Response(false, "Unknown command. Type 'help' to see available commands", null);
+        }
+        return command.execute(request.argument(), request.route());
     }
 
     public Map<String, Command> getCommands(){
