@@ -58,6 +58,7 @@ public class ClientCommandManager {
 
         if (commandName.equals("execute_script")){
             executeScript(arg, socketChannel);
+            return null;
         }
 
         try{

@@ -84,7 +84,6 @@ public class InputManager {
                 }
 
                 buffer.append((char)ch);
-                System.out.print((char)ch);
             }
         } catch (IOException e){
             return null;

@@ -7,22 +7,18 @@ import org.example.request_and_response.Response;
 
 import java.util.LinkedHashMap;
 
-public class Save implements Command {
+public class SaveServer implements Command {
 
     private final FileManager fileManager;
     private final CollectionManager collectionManager;
 
-    public Save(FileManager fileManager, CollectionManager collectionManager){
+    public SaveServer(FileManager fileManager, CollectionManager collectionManager){
         this.fileManager = fileManager;
         this.collectionManager = collectionManager;
     }
 
     @Override
     public Response execute(String arg, Route route) {
-
-        if (arg != null){
-            return new Response(false, "Usage: save", null);
-        }
 
         String answer = fileManager.saveCollection(new LinkedHashMap<>(collectionManager.show()));
         if (answer.equals("File path is not found.")){

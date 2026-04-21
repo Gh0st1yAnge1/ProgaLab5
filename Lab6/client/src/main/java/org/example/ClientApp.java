@@ -30,9 +30,10 @@ public class ClientApp {
 
             System.out.println("Connecting to server at" + HOST + ":" + PORT + "...");
 
+            socketChannel.connect(new InetSocketAddress(HOST, PORT));
             //Connecting loop
-            while (!socketChannel.connect(new InetSocketAddress(HOST, PORT))){
-                System.out.println("Server is not available. Retrying in 2 sec...");
+            while (!socketChannel.finishConnect()){
+                System.out.println("Server is not available. Retrying...");
                 Thread.sleep(2000);
             }
 
@@ -46,20 +47,12 @@ public class ClientApp {
 
                 try {
                     Request request = commandManager.execute(input, socketChannel);
-
                     if (request == null){
                         continue;
                     }
-
                     if (request.commandType() == CommandType.EXIT){
-                        commandManager.executeScript(request.argument(), socketChannel);
                         isRunning = false;
                     }
-
-                    if (request.commandType() == CommandType.EXECUTE_SCRIPT){
-                        commandManager.executeScript(request.argument(), socketChannel);
-                    }
-
 
                     //to server
                     sendRequest(socketChannel, request);
@@ -67,7 +60,7 @@ public class ClientApp {
                     //waiting for response
                     Response response = readResponse(socketChannel);
 
-                    if (response.message() != null){
+                    if ((response.message() != null) && !response.message().isEmpty()){
                         System.out.println(response.message());
                         if (response.collection() != null){
                             System.out.println(response.collection());
@@ -112,20 +105,22 @@ public class ClientApp {
         }
     }
 
-    public static Response readResponse(SocketChannel socketChannel) throws IOException, ClassNotFoundException{
+    public static Response readResponse(SocketChannel socketChannel) throws IOException, ClassNotFoundException, InterruptedException {
 
         //Read length
         ByteBuffer len = ByteBuffer.allocate(4);
-        while (len.hasRemaining()){
-            if (socketChannel.read(len) == -1) return null;
+        while (len.hasRemaining()) {
+            int bytesRead = socketChannel.read(len);
+            if (bytesRead == -1) return null;
         }
         len.flip();
         int length = len.getInt();
 
         //Read data
         ByteBuffer dataBuf = ByteBuffer.allocate(length);
-        while (dataBuf.hasRemaining()){
-            if (socketChannel.read(dataBuf) == -1) return null;
+        while (dataBuf.hasRemaining()) {
+            int dataRead = socketChannel.read(dataBuf);
+            if (dataRead == -1) return null;
         }
 
         dataBuf.flip();

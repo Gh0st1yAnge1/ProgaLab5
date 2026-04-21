@@ -24,12 +24,15 @@ public class ServerCommandExecutor {
         commands.put("update", new Update(collectionManager, this));
         commands.put("replace_if_lower", new ReplaceIfLower(collectionManager, this));
         commands.put("remove_greater", new RemoveGreater(collectionManager, this));
-        commands.put("save", new Save(fileManager,collectionManager));
+        commands.put("save_server", new SaveServer(fileManager,collectionManager));
     }
 
     public Response execute(Request request){
         String name = request.commandType().toString().toLowerCase();
         Command command = commands.get(name);
+        if (name.equals("exit")){
+            return new Response(false, "", null);
+        }
         if (command == null){
             return new Response(false, "Unknown command. Type 'help' to see available commands", null);
         }

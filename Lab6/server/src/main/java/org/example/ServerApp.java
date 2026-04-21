@@ -8,7 +8,6 @@ import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.request_and_response.Response;
 import org.example.utils.LoggerUtil;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -17,11 +16,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,7 +26,6 @@ public class ServerApp
 {
     private static final int PORT = 12345;
     private static final Logger logger = LoggerUtil.getLogger();
-    private static final org.slf4j.Logger log = LoggerFactory.getLogger(ServerApp.class);
 
     private static CollectionManager collectionManager;
     private static FileManager fileManager;
@@ -62,6 +58,9 @@ public class ServerApp
             );
             logger.info("Shutdown save status: " + saveResult.message());
         }));
+
+        logger.info("Starting network server loop...");
+        runServer();
     }
 
     private static void runServer(){

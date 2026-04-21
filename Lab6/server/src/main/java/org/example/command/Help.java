@@ -20,9 +20,11 @@ public class Help implements Command {
             return new Response(false, "Usage: help", null);
         }
 
-        String answer = "";
-        answer += "Available commands:\n";
+        String answer = "Available commands:\n\n--execute_script--\nexecutes script\n";
         for (Command command: serverCommandExecutor.getCommands().values()){
+            if (command.getName().equals("save")){
+                continue;
+            }
             answer += " \n";
             answer += "--" + command.getName() + "--\n";
             answer += command.getDescription()+ "\n";
