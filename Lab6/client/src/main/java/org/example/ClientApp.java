@@ -4,6 +4,7 @@ import org.example.manager.*;
 import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.request_and_response.Response;
+import org.example.utils.RouteBuilder;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -21,7 +22,8 @@ public class ClientApp {
         Runtime.getRuntime().addShutdownHook(new Thread(TerminalManager::disableRawMode));
 
         InputManager inputManager = new InputManager();
-        ClientCommandManager commandManager = new ClientCommandManager(inputManager);
+        RouteBuilder routeBuilder = new RouteBuilder(inputManager);
+        ClientCommandManager commandManager = new ClientCommandManager(inputManager, routeBuilder);
         SocketChannel socketChannel = null;
 
         try{
@@ -52,6 +54,7 @@ public class ClientApp {
                     }
                     if (request.commandType() == CommandType.EXIT){
                         isRunning = false;
+                        continue;
                     }
 
                     //to server
@@ -60,7 +63,7 @@ public class ClientApp {
                     //waiting for response
                     Response response = readResponse(socketChannel);
 
-                    if ((response.message() != null) && !response.message().isEmpty()){
+                    if (!response.message().isEmpty()){
                         System.out.println(response.message());
                         if (response.collection() != null){
                             System.out.println(response.collection());

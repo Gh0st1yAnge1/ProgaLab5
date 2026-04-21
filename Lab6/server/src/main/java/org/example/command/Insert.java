@@ -19,29 +19,13 @@ public class Insert implements Command {
     @Override
     public Response execute(String arg, Route route) {
 
-        if (arg == null || arg.isBlank()){
-            return new Response(false, "Usage: insert <key>", null);
-        }
-
         if (route == null){
             return new Response(false, "Route must not be null", null);
         }
 
-        int key;
-        try {
-            key = Integer.parseInt(arg);
-        } catch (NumberFormatException ex){
-            return new Response(false, "Key must be integer.", null);
-        }
-
-        boolean isInserted = collectionManager.insert(key, route);
-
-        if (isInserted){
-            serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
-            return new Response(true, "Element inserted", null);
-        } else {
-            return new Response(false, "Key already exists", null);
-        }
+        collectionManager.insert(Integer.parseInt(arg), route);
+        serverCommandExecutor.execute(new Request(CommandType.SAVE_SERVER, null, null));
+        return new Response(true, "Element inserted", null);
     }
 
     @Override

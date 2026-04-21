@@ -4,6 +4,7 @@ import org.example.ClientApp;
 import org.example.command.Command;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import org.example.command.*;
@@ -16,11 +17,12 @@ import org.example.utils.RouteBuilder;
 public class ClientCommandManager {
     private final Map<String, Command> commands = new LinkedHashMap<>();
     private final InputManager inputManager;
+    private final RouteBuilder routeBuilder;
     private final Set<String> scriptStack = new HashSet<>();
 
-    public ClientCommandManager(InputManager inputManager) {
+    public ClientCommandManager(InputManager inputManager, RouteBuilder routeBuilder) {
         this.inputManager = inputManager;
-        RouteBuilder routeBuilder = new RouteBuilder(inputManager);
+        this.routeBuilder = routeBuilder;
 
         commands.put("average_of_distance", new AverageOfDistance());
         commands.put("help", new Help());
@@ -37,6 +39,7 @@ public class ClientCommandManager {
         commands.put("update", new Update(routeBuilder));
         commands.put("replace_if_lower", new ReplaceIfLower(routeBuilder));
         commands.put("remove_greater", new RemoveGreater(routeBuilder));
+        commands.put("check_key", new CheckKey());
     }
 
     public Request execute(String input, SocketChannel socketChannel){
@@ -61,6 +64,28 @@ public class ClientCommandManager {
             return null;
         }
 
+        if (commandName.equals("insert")){
+            try {
+                ClientApp.sendRequest(socketChannel, new Request(CommandType.CHECK_KEY, arg, null));
+                Response response = ClientApp.readResponse(socketChannel);
+
+                if (response != null && response.success()){
+                    System.out.println(response.message());
+                    return new Insert(routeBuilder).execute(arg);
+                } else {
+                    System.out.println(response.message());
+                    return null;
+                }
+
+            } catch (InputCancelledException e) {
+                System.out.println("\nRoute building is cancelled");
+            } catch (IOException | ClassNotFoundException |InterruptedException ex){
+                System.out.println(ex.getMessage());
+            } finally {
+                return null;
+            }
+        }
+
         try{
             return command.execute(arg);
         } catch (InputCancelledException ex) {
@@ -72,8 +97,6 @@ public class ClientCommandManager {
     }
 
     public void executeScript(String fileName, SocketChannel socketChannel) {
-
-
         try{
             File file = new File(fileName);
             if (!file.exists()) {
@@ -109,7 +132,7 @@ public class ClientCommandManager {
 
                     if (request.commandType() == CommandType.EXECUTE_SCRIPT){
                         executeScript(request.argument(), socketChannel);
-                        continue ;
+                        continue;
                     }
 
                     ClientApp.sendRequest(socketChannel, request);

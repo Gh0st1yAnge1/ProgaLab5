@@ -17,6 +17,10 @@ public class CollectionManager {
         this.initializationDate = LocalDate.now();
     }
 
+    public boolean checkKey(Integer id){
+        return collection.containsKey(id);
+    }
+
     public boolean insert(Integer id, Route route){
         if (collection.putIfAbsent(id, route) == null){
             IdGenerator.compareMaxId(route.getId());

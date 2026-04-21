@@ -1,6 +1,5 @@
 package org.example.command;
 
-import org.example.manager.InputManager;
 import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.utils.RouteBuilder;

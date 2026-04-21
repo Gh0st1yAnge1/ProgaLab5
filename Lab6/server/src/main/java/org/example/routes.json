@@ -1,22 +1,12 @@
 {
   "1": {
-    "id": 2,
-    "name": "Garry",
+    "id": 1,
+    "name": "1",
     "coordinates": {
       "x": 1.0,
       "y": 1.0
     },
     "creationDate": "2026-04-21",
-    "distance": 21.0
-  },
-  "2": {
-    "id": 3,
-    "name": "Chuck",
-    "coordinates": {
-      "x": 3.0,
-      "y": 3.0
-    },
-    "creationDate": "2026-04-21",
-    "distance": 42.0
+    "distance": 2.0
   }
 }
