@@ -5,11 +5,14 @@ import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.request_and_response.Response;
 import org.example.utils.RouteBuilder;
+import org.example.utils.TcpUtil;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class ClientApp {
 
@@ -90,48 +93,60 @@ public class ClientApp {
 
 
     public static void sendRequest(SocketChannel socketChannel, Request request) throws IOException{
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-        oos.writeObject(request);
-        oos.flush();
-
-        byte[] data = baos.toByteArray();
-
-        ByteBuffer buffer = ByteBuffer.allocate(data.length + 4);
-        buffer.putInt(data.length);
-        buffer.put(data);
-        buffer.flip();
-
-        while (buffer.hasRemaining()){
-            socketChannel.write(buffer);
+        Path payLoadFile = TcpUtil.serializeToTempFile(request);
+        try {
+            TcpUtil.writeChunckedFromFile(socketChannel, payLoadFile);
+        } finally {
+            Files.deleteIfExists(payLoadFile);
         }
     }
 
     public static Response readResponse(SocketChannel socketChannel) throws IOException, ClassNotFoundException, InterruptedException {
+        Path payLoadFile = Files.createTempFile("tcp-response", ".bin");
+        try (OutputStream outputStream = Files.newOutputStream(payLoadFile)) {
+            byte[] transferBuffer = new byte[TcpUtil.CHUNK_SIZE];
+            while (true){
+                ByteBuffer chunckLengthBuffer = ByteBuffer.allocate(4);
+                while (chunckLengthBuffer.hasRemaining()){
+                    int bytesRead = socketChannel.read(chunckLengthBuffer);
+                    if (bytesRead == -1){
+                        return null;
+                    }
+                    if (bytesRead == 0){
+                        Thread.sleep(5);
+                    }
+                }
+                chunckLengthBuffer.flip();
+                int chunckLength = chunckLengthBuffer.getInt();
+                if (chunckLength < 0){
+                    throw new IOException("Invalid chunk size:" + chunckLength);
+                }
+                if (chunckLength == 0) {
+                    break;
+                }
 
-        //Read length
-        ByteBuffer len = ByteBuffer.allocate(4);
-        while (len.hasRemaining()) {
-            int bytesRead = socketChannel.read(len);
-            if (bytesRead == -1) return null;
+                int remaining  = chunckLength;
+                while (remaining > 0) {
+                    int portion = Math.min(remaining, transferBuffer.length);
+                    ByteBuffer payloadBuffer = ByteBuffer.wrap(transferBuffer, 0, portion);
+                    while (payloadBuffer.hasRemaining()){
+                        int bytesRead = socketChannel.read(payloadBuffer);
+                        if (bytesRead == -1){
+                            return null;
+                        }
+                        if  (bytesRead == 0){
+                            Thread.sleep(5);
+                        }
+                    }
+                    outputStream.write(transferBuffer, 0, portion);
+                    remaining -= portion;
+                }
+            }
         }
-        len.flip();
-        int length = len.getInt();
-
-        //Read data
-        ByteBuffer dataBuf = ByteBuffer.allocate(length);
-        while (dataBuf.hasRemaining()) {
-            int dataRead = socketChannel.read(dataBuf);
-            if (dataRead == -1) return null;
+        try {
+            return (Response) TcpUtil.desirealizeFromFile(payLoadFile);
+        } finally {
+            Files.deleteIfExists(payLoadFile);
         }
-
-        dataBuf.flip();
-        byte[] data = new byte[length];
-        dataBuf.get(data);
-
-        ByteArrayInputStream bais = new ByteArrayInputStream(data);
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        return (Response) ois.readObject();
     }
 }

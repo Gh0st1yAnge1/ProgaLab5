@@ -8,6 +8,7 @@ import org.example.request_and_response.CommandType;
 import org.example.request_and_response.Request;
 import org.example.request_and_response.Response;
 import org.example.utils.LoggerUtil;
+import org.example.utils.TcpUtil;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -16,6 +17,8 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Set;
@@ -113,102 +116,133 @@ public class ServerApp
         if (clientChannel != null) {
             clientChannel.configureBlocking(false);
 
-            clientChannel.register(selector, SelectionKey.OP_READ); new ClientSession();
+            clientChannel.register(selector, SelectionKey.OP_READ, new ClientSession());
             logger.info("New connection from: " + clientChannel.getRemoteAddress());
         }
     }
 
 
-    private static void handleRead(SelectionKey key) throws IOException, ClassNotFoundException{
+    private static void handleRead(SelectionKey key) throws IOException, ClassNotFoundException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         ClientSession session = (ClientSession) key.attachment();
-        if (session == null){
+        if (session == null) {
             session = new ClientSession();
             key.attach(session);
         }
 
-        if (session.lengthBuffer.hasRemaining()){
-            int bytesRead = clientChannel.read(session.lengthBuffer);
-            if (bytesRead == -1){
+        while (true){
+            if (session.remainingChunkBytes == null){
+                int bytesRead = clientChannel.read(session.chunkLengthBuffer);
+                if (bytesRead == -1){
+                    closeClient(key);
+                    return;
+                }
+
+                if (session.chunkLengthBuffer.hasRemaining()){
+                    return;
+                }
+
+                session.chunkLengthBuffer.flip();
+                int chunkLength = session.chunkLengthBuffer.getInt();
+                session.chunkLengthBuffer.clear();
+
+                if (chunkLength < 0 || chunkLength > TcpUtil.CHUNK_SIZE){
+                    logger.warning("Invalid chunk size from " + clientChannel.getRemoteAddress() + ": " + chunkLength);
+                    closeClient(key);
+                    return;
+                }
+
+                if (chunkLength == 0){
+                    session.payloadOutputStream.flush();
+                    Request request = (Request) TcpUtil.desirealizeFromFile(session.payloadFile);
+                    Response response = serverCommandExecutor.execute(request);
+                    logger.info("Got request: " + request.commandType() + " from " + clientChannel.getRemoteAddress());
+                    sendResponse(clientChannel, response);
+                    session.reset();
+                    return;
+                }
+
+                session.remainingChunkBytes = chunkLength;
+            }
+
+            session.payloadBuffer.clear();
+            int portion = Math.min(session.remainingChunkBytes, session.payloadBuffer.capacity());
+            session.payloadBuffer.limit(portion);
+
+            int bytesRead = clientChannel.read(session.payloadBuffer);
+            if (bytesRead == -1) {
                 closeClient(key);
                 return;
             }
-
-            if (session.lengthBuffer.hasRemaining()){
-                return;
-            }
-            session.lengthBuffer.flip();
-            int dataLength = session.lengthBuffer.getInt();
-            if (dataLength < 0 || dataLength > 10_000_000){
-                logger.warning("Invalid request size from " + clientChannel.getRemoteAddress() + ": " + dataLength);
-                closeClient(key);
+            if (bytesRead == 0) {
                 return;
             }
 
-            session.databuffer = ByteBuffer.allocate(dataLength);
+            session.payloadOutputStream.write(session.payloadBuffer.array(), 0, bytesRead);
+            session.remainingChunkBytes -= bytesRead;
+
+            if (session.remainingChunkBytes == 0) {
+                session.remainingChunkBytes = null;
+            }
         }
-
-        Objects.requireNonNull(session.databuffer, "Data buffer must be initialized");
-        int bytesRead = clientChannel.read(session.databuffer);
-        if (bytesRead == -1){
-            closeClient(key);
-            return;
-        }
-
-        if (session.databuffer.hasRemaining()){
-            return;
-        }
-
-        session.databuffer.flip();
-        byte[] data = new byte[session.databuffer.remaining()];
-        session.databuffer.get(data);
-
-        ByteArrayInputStream bais = new ByteArrayInputStream(data);
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        Request request = (Request) ois.readObject();
-
-
-        Response response = serverCommandExecutor.execute(request);
-        logger.info("Got request: " + request.commandType() + " from " + clientChannel.getRemoteAddress());
-        sendResponse(clientChannel, response);
-        session.reset();
     }
 
     private static void sendResponse(SocketChannel channel, Response response) throws IOException {
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(response);
-        oos.flush();
-        byte[] data = baos.toByteArray();
-
-        ByteBuffer buffer = ByteBuffer.allocate(4 + data.length);
-        buffer.putInt(data.length);
-        buffer.put(data);
-        buffer.flip();
-
-        while (buffer.hasRemaining()) {
-            channel.write(buffer);
+        Path payloadFile = TcpUtil.serializeToTempFile(response);
+        try {
+            TcpUtil.writeChunckedFromFile(channel, payloadFile);
+            logger.fine("Response is sent to client.");
+        } finally {
+            Files.deleteIfExists(payloadFile);
         }
-
-        logger.fine("Response is sent to client.");
 
     }
 
     private static void closeClient(SelectionKey key) throws IOException{
         SocketChannel channel = (SocketChannel) key.channel();
         logger.info("Client disconnected: " + channel.getRemoteAddress());
+
+        ClientSession session = (ClientSession) key.attachment();
+        if (session != null) {
+            session.cleanUp();
+        }
+
         key.cancel();
         channel.close();
     }
 
     private static class ClientSession{
-        private ByteBuffer lengthBuffer  = ByteBuffer.allocate(4);
-        private ByteBuffer databuffer;
+        private ByteBuffer chunkLengthBuffer;
+        private ByteBuffer payloadBuffer;
+        private Integer remainingChunkBytes;
+        private Path payloadFile;
+        private OutputStream payloadOutputStream;
 
-        private void reset(){
-            this.lengthBuffer = ByteBuffer.allocate(4);
-            this.databuffer = null;
+        private ClientSession() throws IOException{
+            init();
+        }
+
+        private void init() throws IOException {
+            this.chunkLengthBuffer = ByteBuffer.allocate(4);
+            this.remainingChunkBytes = null;
+            this.payloadBuffer = ByteBuffer.allocate(TcpUtil.CHUNK_SIZE);
+            this.payloadFile = Files.createTempFile("tcp-request", ".bin");
+            this.payloadOutputStream = Files.newOutputStream(this.payloadFile);
+        }
+
+        private void cleanUp() throws IOException {
+            if (this.payloadOutputStream != null){
+                this.payloadOutputStream.close();
+            }
+            if (this.payloadFile != null) {
+                Files.deleteIfExists(this.payloadFile);
+            }
+        }
+
+        private void reset() throws IOException{
+            cleanUp();
+            init();
         }
     }
 }
