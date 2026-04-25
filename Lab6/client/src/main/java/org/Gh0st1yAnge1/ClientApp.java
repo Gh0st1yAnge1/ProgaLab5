@@ -23,8 +23,6 @@ public class ClientApp {
     private static final int PORT = 12345;
     private static final long RECONNECT_TIMEOUT_MS = 3000;
 
-    // ─── Состояния клиента ───────────────────────────────────────────────────────
-
     private enum State {
         DISCONNECTED,
         CONNECTING,
@@ -35,25 +33,15 @@ public class ClientApp {
     private static Selector selector;
     private static SocketChannel socketChannel;
 
-    // Менеджеры — нужны и в main, и в sendAndWait / handleRead
     private static InputManager inputManager;
     private static RouteBuilder routeBuilder;
     private static ClientCommandManager commandManager;
 
-    // Текущий запрос, ожидающий отправки
     private static Request pendingRequest = null;
 
-    // ─── Двухэтапная логика insert ───────────────────────────────────────────────
-
-    // После отправки CHECK_KEY ждём ответ сервера.
-    // Если ключ свободен — собираем Route и отправляем INSERT.
     private static boolean awaitingInsertConfirm = false;
     private static String  pendingInsertArg      = null;
-
-    // Последний полученный ответ — нужен для sendAndWait() в скриптах
     private static Response lastResponse = null;
-
-    // ─── Буферы для чтения ответа ────────────────────────────────────────────────
 
     private static ByteBuffer chunkLengthBuffer = ByteBuffer.allocate(4);
     private static Integer    remainingChunkBytes = null;
@@ -61,16 +49,12 @@ public class ClientApp {
     private static OutputStream responseOut       = null;
     private static final ByteBuffer readBuffer    = ByteBuffer.allocate(TcpUtil.CHUNK_SIZE);
 
-    // ─── Буферы для отправки запроса ─────────────────────────────────────────────
-
     private static Path         requestFile    = null;
     private static InputStream  requestStream  = null;
     private static final byte[] writeChunk     = new byte[TcpUtil.CHUNK_SIZE];
     private static ByteBuffer   writeHeaderBuf = ByteBuffer.allocate(4);
     private static ByteBuffer   writePayloadBuf = null;
     private static boolean      sendingEof      = false;
-
-    // ─── main ────────────────────────────────────────────────────────────────────
 
     public static void main(String[] args) throws IOException {
         TerminalManager.enableRawMode();
@@ -107,14 +91,12 @@ public class ClientApp {
                 }
             }
 
-            // Переподключение если соединение потеряно
             if (state == State.DISCONNECTED) {
                 System.out.println("Reconnecting to server...");
                 initiateConnect();
                 continue;
             }
 
-            // Читаем ввод только когда подключены и не ждём ответа
             if (state == State.CONNECTED && pendingRequest == null) {
                 if (System.in.available() > 0) {
                     String input = inputManager.readline();
@@ -123,7 +105,6 @@ public class ClientApp {
                         continue;
                     }
 
-                    // execute_script обрабатываем отдельно — запускаем синхронно
                     String commandName = input.trim().split("\\s+", 2)[0];
                     if (commandName.equals("execute_script")) {
                         String arg = input.trim().contains(" ")
@@ -141,7 +122,6 @@ public class ClientApp {
                     }
                     if (request.commandType() == CommandType.EXIT) break;
 
-                    // insert: командный менеджер вернул CHECK_KEY — запоминаем аргумент
                     if (request.commandType() == CommandType.CHECK_KEY
                             && commandName.equals("insert")) {
                         awaitingInsertConfirm = true;
@@ -157,8 +137,6 @@ public class ClientApp {
         TerminalManager.disableRawMode();
         cleanup();
     }
-
-    // ─── Подключение ─────────────────────────────────────────────────────────────
 
     private static void initiateConnect() throws IOException {
         if (socketChannel != null) {
@@ -191,8 +169,6 @@ public class ClientApp {
             channel.close();
         }
     }
-
-    // ─── Отправка (OP_WRITE) ─────────────────────────────────────────────────────
 
     private static void handleWrite(SelectionKey key) throws IOException {
         if (requestFile == null) {
@@ -247,8 +223,6 @@ public class ClientApp {
         key.interestOps(SelectionKey.OP_READ);
     }
 
-    // ─── Чтение (OP_READ) ────────────────────────────────────────────────────────
-
     private static void handleRead(SelectionKey key) throws IOException, ClassNotFoundException {
         if (pendingRequest == null || responseFile == null) return;
 
@@ -294,20 +268,14 @@ public class ClientApp {
         }
     }
 
-    /**
-     * Обрабатывает полученный ответ.
-     * Вынесено из handleRead чтобы разделить чтение и бизнес-логику.
-     */
     private static void handleResponse(SelectionKey key, Response response)
             throws IOException {
 
-        // Ответ на CHECK_KEY для команды insert
         if (awaitingInsertConfirm) {
             awaitingInsertConfirm = false;
             if (response.success()) {
                 System.out.println(response.message());
                 try {
-                    // Ключ свободен — собираем Route и отправляем настоящий INSERT
                     Request insertRequest = new Insert(routeBuilder).execute(pendingInsertArg);
                     pendingInsertArg = null;
                     pendingRequest = insertRequest;
@@ -318,7 +286,6 @@ public class ClientApp {
                     System.out.print("> ");
                 }
             } else {
-                // Ключ занят — сообщаем и возвращаемся к вводу
                 System.out.println(response.message());
                 pendingInsertArg = null;
                 System.out.print("> ");
@@ -326,7 +293,6 @@ public class ClientApp {
             return;
         }
 
-        // Обычный ответ
         if (response.message() != null) System.out.println(response.message());
         if (response.collection() != null) System.out.println(response.collection());
         System.out.print("> ");
@@ -334,13 +300,6 @@ public class ClientApp {
         key.interestOps(SelectionKey.OP_READ);
     }
 
-    // ─── Синхронная отправка для скриптов ────────────────────────────────────────
-
-    /**
-     * Отправляет запрос и синхронно ждёт ответа.
-     * Используется внутри executeScript через колбэк RequestSender.
-     * Крутит мини-цикл selector'а пока pendingRequest != null.
-     */
     private static Response sendAndWait(Request request) throws IOException, ClassNotFoundException {
         if (state != State.CONNECTED) {
             throw new IOException("Not connected to server.");
@@ -368,8 +327,6 @@ public class ClientApp {
 
         return lastResponse;
     }
-
-    // ─── Отключение ──────────────────────────────────────────────────────────────
 
     private static void handleDisconnect() {
         System.out.println("Disconnected. Will reconnect...");

@@ -43,7 +43,7 @@ public class ServerApp {
     private static ServerCommandExecutor serverCommandExecutor;
     private static AuditProducer auditProducer;
 
-    public static void main(String[] args) throws ClassNotFoundException{
+    public static void main(String[] args) {
         logger.setLevel(Level.INFO);
         logger.info("=== LOADING SERVER ===");
 

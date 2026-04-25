@@ -3,16 +3,6 @@ package org.Gh0st1yAnge1;
 import java.io.Serializable;
 import java.time.Instant;
 
-/**
- * Сообщение аудита, которое сериализуется в JSON и отправляется в Kafka.
- *
- * Поля:
- *   commandType  — тип CRUD-операции (INSERT, UPDATE, REMOVE_KEY и т.д.)
- *   argument     — аргумент команды (обычно ключ)
- *   timestamp    — время выполнения операции (ISO-8601)
- *   success      — успешно ли выполнилась операция
- *   message      — ответное сообщение сервера
- */
 public class AuditEvent implements Serializable {
 
     private String commandType;
@@ -21,7 +11,6 @@ public class AuditEvent implements Serializable {
     private boolean success;
     private String message;
 
-    // Конструктор без аргументов нужен Jackson для десериализации
     public AuditEvent() {}
 
     public AuditEvent(String commandType, String argument, boolean success, String message) {

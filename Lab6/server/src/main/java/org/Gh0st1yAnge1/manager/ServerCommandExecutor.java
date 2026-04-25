@@ -2,6 +2,7 @@ package org.Gh0st1yAnge1.manager;
 
 import org.Gh0st1yAnge1.audit.AuditProducer;
 import org.Gh0st1yAnge1.command.*;
+import org.Gh0st1yAnge1.request_and_response.CommandType;
 import org.Gh0st1yAnge1.request_and_response.Request;
 import org.Gh0st1yAnge1.request_and_response.Response;
 
@@ -10,8 +11,21 @@ import java.util.*;
 public class ServerCommandExecutor {
 
     private final Map<String, Command> commands = new LinkedHashMap<>();
+    private final AuditProducer auditProducer;
+    private static final Set<CommandType> AUDITED_COMMANDS = Set.of(
+            CommandType.INSERT,
+            CommandType.UPDATE,
+            CommandType.REMOVE_KEY,
+            CommandType.REMOVE_GREATER_KEY,
+            CommandType.REMOVE_GREATER,
+            CommandType.REPLACE_IF_LOWER,
+            CommandType.CLEAR,
+            CommandType.SHOW
+    );
+
 
     public ServerCommandExecutor(CollectionManager collectionManager, FileManager fileManager, AuditProducer auditProducer){
+        this.auditProducer = auditProducer;
         commands.put("average_of_distance", new AverageOfDistance(collectionManager));
         commands.put("help", new Help(this));
         commands.put("info", new Info(collectionManager));
@@ -35,7 +49,19 @@ public class ServerCommandExecutor {
         if (command == null){
             return new Response(false, "Unknown command. Type 'help' to see available commands", null);
         }
-        return command.execute(request.argument(), request.route());
+
+        Response response = command.execute(request.argument(), request.route());
+
+        if (auditProducer != null && AUDITED_COMMANDS.contains(request.commandType())) {
+            auditProducer.sendIfAuditable(
+                    request.commandType().name(),
+                    request.argument(),
+                    response.success(),
+                    response.message()
+            );
+        }
+
+        return response;
     }
 
     public Map<String, Command> getCommands(){
