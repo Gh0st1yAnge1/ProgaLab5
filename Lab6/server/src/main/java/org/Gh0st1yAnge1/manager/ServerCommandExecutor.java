@@ -1,16 +1,22 @@
 package org.Gh0st1yAnge1.manager;
 
 import org.Gh0st1yAnge1.audit.AuditProducer;
-import org.Gh0st1yAnge1.command.*;
+import org.Gh0st1yAnge1.client_commands.*;
+import org.Gh0st1yAnge1.exceptions.InputCancelledException;
 import org.Gh0st1yAnge1.request_and_response.CommandType;
 import org.Gh0st1yAnge1.request_and_response.Request;
 import org.Gh0st1yAnge1.request_and_response.Response;
+import org.Gh0st1yAnge1.server_commands.Exit;
+import org.Gh0st1yAnge1.server_commands.SaveWithPath;
+import org.Gh0st1yAnge1.server_commands.ServerCommand;
+import org.Gh0st1yAnge1.server_commands.ServerHelp;
 
 import java.util.*;
 
 public class ServerCommandExecutor {
 
-    private final Map<String, Command> commands = new LinkedHashMap<>();
+    private final Map<String, ClientCommand> clientCommands = new LinkedHashMap<>();
+    private final Map<String, ServerCommand> serverCommands = new LinkedHashMap<>();
     private final AuditProducer auditProducer;
     private static final Set<CommandType> AUDITED_COMMANDS = Set.of(
             CommandType.INSERT,
@@ -26,26 +32,30 @@ public class ServerCommandExecutor {
 
     public ServerCommandExecutor(CollectionManager collectionManager, FileManager fileManager, AuditProducer auditProducer){
         this.auditProducer = auditProducer;
-        commands.put("average_of_distance", new AverageOfDistance(collectionManager));
-        commands.put("help", new Help(this));
-        commands.put("info", new Info(collectionManager));
-        commands.put("show", new Show(collectionManager));
-        commands.put("clear", new Clear(collectionManager));
-        commands.put("remove_key", new RemoveKey(collectionManager, this));
-        commands.put("remove_greater_key", new RemoveGreaterKey(collectionManager, this));
-        commands.put("count_by_distance", new CountByDistance(collectionManager));
-        commands.put("filter_less_than_distance", new FilterLessThanDistance(collectionManager));
-        commands.put("insert", new Insert(collectionManager, this));
-        commands.put("update", new Update(collectionManager, this));
-        commands.put("replace_if_lower", new ReplaceIfLower(collectionManager, this));
-        commands.put("remove_greater", new RemoveGreater(collectionManager, this));
-        commands.put("save_server", new SaveServer(fileManager,collectionManager));
-        commands.put("check_key", new CheckKey(collectionManager));
+        clientCommands.put("average_of_distance", new AverageOfDistance(collectionManager));
+        clientCommands.put("help", new Help(this));
+        clientCommands.put("info", new Info(collectionManager));
+        clientCommands.put("show", new Show(collectionManager));
+        clientCommands.put("clear", new Clear(collectionManager));
+        clientCommands.put("remove_key", new RemoveKey(collectionManager, this));
+        clientCommands.put("remove_greater_key", new RemoveGreaterKey(collectionManager, this));
+        clientCommands.put("count_by_distance", new CountByDistance(collectionManager));
+        clientCommands.put("filter_less_than_distance", new FilterLessThanDistance(collectionManager));
+        clientCommands.put("insert", new Insert(collectionManager, this));
+        clientCommands.put("update", new Update(collectionManager, this));
+        clientCommands.put("replace_if_lower", new ReplaceIfLower(collectionManager, this));
+        clientCommands.put("remove_greater", new RemoveGreater(collectionManager, this));
+        clientCommands.put("save_server", new SaveServer(fileManager,collectionManager));
+        clientCommands.put("check_key", new CheckKey(collectionManager));
+
+        serverCommands.put("exit", new Exit());
+        serverCommands.put("save_with_path", new SaveWithPath(collectionManager));
+        serverCommands.put("help", new ServerHelp());
     }
 
     public Response execute(Request request){
         String name = request.commandType().toString().toLowerCase();
-        Command command = commands.get(name);
+        ClientCommand command = clientCommands.get(name);
         if (command == null){
             return new Response(false, "Unknown command. Type 'help' to see available commands", null);
         }
@@ -64,7 +74,31 @@ public class ServerCommandExecutor {
         return response;
     }
 
-    public Map<String, Command> getCommands(){
-        return commands;
+    public String execute(String input) {
+        if (input == null || input.trim().isEmpty()) return null;
+
+        String[] parts = input.trim().split("\\s+", 2);
+        String commandName = parts[0];
+        String arg = parts.length > 1 ? parts[1] : null;
+
+        ServerCommand command = serverCommands.get(commandName);
+
+        if (command == null) {
+            System.out.println("Unknown command. Type 'help' to see available commands.");
+            return null;
+        }
+
+        try {
+            return command.execute(arg);
+        } catch (InputCancelledException ex) {
+            System.out.println("Command cancelled.");
+        } catch (Exception e) {
+            System.out.println("Error while executing command: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public Map<String, ClientCommand> getCommands(){
+        return clientCommands;
     }
 }

@@ -3,6 +3,7 @@ package org.Gh0st1yAnge1;
 import org.Gh0st1yAnge1.audit.AuditProducer;
 import org.Gh0st1yAnge1.manager.CollectionManager;
 import org.Gh0st1yAnge1.manager.FileManager;
+import org.Gh0st1yAnge1.manager.InputManager;
 import org.Gh0st1yAnge1.manager.ServerCommandExecutor;
 import org.Gh0st1yAnge1.model.Route;
 import org.Gh0st1yAnge1.request_and_response.CommandType;
@@ -22,17 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Сервер. Изменения по сравнению с предыдущей версией:
- *
- *   1. Читает переменную окружения KAFKA_BOOTSTRAP_SERVERS.
- *      Если задана — создаёт AuditProducer и передаёт его в ServerCommandExecutor.
- *      Если не задана — сервер работает без аудита (как раньше).
- *
- *   2. В shutdown hook добавлено закрытие AuditProducer — вызывает
- *      producer.flush() + producer.close() для гарантированной отправки
- *      всех буферизованных сообщений.
- */
 public class ServerApp {
 
     private static final int PORT = 12345;
@@ -41,7 +31,9 @@ public class ServerApp {
     private static CollectionManager collectionManager;
     private static FileManager fileManager;
     private static ServerCommandExecutor serverCommandExecutor;
+    private static InputManager inputManager;
     private static AuditProducer auditProducer;
+    private static volatile boolean running = true;
 
     public static void main(String[] args) {
         logger.setLevel(Level.INFO);
@@ -57,9 +49,6 @@ public class ServerApp {
         fileManager = new FileManager(filePath);
         collectionManager = new CollectionManager();
 
-        // ── Kafka (опционально) ───────────────────────────────────────────────
-        // Запуск с аудитом: export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-        // Запуск без аудита: просто не задавай переменную
         String kafkaBootstrap = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
         if (kafkaBootstrap != null && !kafkaBootstrap.trim().isEmpty()) {
             try {
@@ -98,37 +87,66 @@ public class ServerApp {
     }
 
     private static void runServer() {
-        try (Selector selector = Selector.open();
-             ServerSocketChannel serverChannel = ServerSocketChannel.open()) {
+        Thread networkThread = new Thread(() -> {
+            try (Selector selector = Selector.open();
+                 ServerSocketChannel serverChannel = ServerSocketChannel.open()) {
 
-            serverChannel.configureBlocking(false);
-            serverChannel.bind(new InetSocketAddress(PORT));
-            serverChannel.register(selector, SelectionKey.OP_ACCEPT);
-            logger.info("Server started on port: " + PORT);
+                serverChannel.configureBlocking(false);
+                serverChannel.bind(new InetSocketAddress(PORT));
+                serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+                logger.info("Server started on port: " + PORT);
 
-            while (true) {
-                int readyCount = selector.select();
-                if (readyCount == 0) continue;
 
-                Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
-                while (iterator.hasNext()) {
-                    SelectionKey key = iterator.next();
-                    iterator.remove();
+                while (running) {
+                    int readyCount = selector.select(500);
+                    if (readyCount == 0) continue;
 
-                    if (!key.isValid()) continue;
+                    Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+                    while (iterator.hasNext()) {
+                        SelectionKey key = iterator.next();
+                        iterator.remove();
 
-                    try {
-                        if (key.isAcceptable()) handleAccept(key, selector);
-                        if (key.isValid() && key.isReadable()) handleRead(key);
-                    } catch (IOException | ClassNotFoundException e) {
-                        logger.severe("Error handling client: " + e.getMessage());
-                        closeClient(key);
+                        if (!key.isValid()) continue;
+
+                        try {
+                            if (key.isAcceptable()) handleAccept(key, selector);
+                            if (key.isValid() && key.isReadable()) handleRead(key);
+                        } catch (IOException | ClassNotFoundException e) {
+                            logger.severe("Error handling client: " + e.getMessage());
+                            closeClient(key);
+                        }
                     }
                 }
-            }
 
-        } catch (IOException e) {
-            logger.severe("Server startup error: " + e.getMessage());
+            } catch (IOException e) {
+                logger.severe("Server startup error: " + e.getMessage());
+            }
+        });
+
+        networkThread.setDaemon(true);
+        networkThread.start();
+
+        inputManager = new InputManager();
+
+        while (running) {
+            System.out.print("> ");
+            String input = inputManager.readline();
+            if (input == null || input.trim().isEmpty()) continue;
+            String answer = serverCommandExecutor.execute(input);
+            if (answer.equals("Session terminated.")) {
+                Response saveResult = serverCommandExecutor.execute(
+                        new Request(CommandType.SAVE_SERVER, null, null)
+                );
+                if (auditProducer != null) {
+                    auditProducer.close();
+                    logger.info("AuditProducer closed.");
+                }
+                logger.info("Save on exit: " + saveResult.message());
+                System.out.println(answer);
+                running = false;
+                break;
+            }
+            System.out.println(answer);
         }
     }
 

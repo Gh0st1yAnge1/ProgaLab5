@@ -1,7 +1,7 @@
 package org.Gh0st1yAnge1.manager;
 
-import org.Gh0st1yAnge1.command.Command;
-import org.Gh0st1yAnge1.command.*;
+import org.Gh0st1yAnge1.client_commands.Command;
+import org.Gh0st1yAnge1.client_commands.*;
 import org.Gh0st1yAnge1.exceptions.InputCancelledException;
 import org.Gh0st1yAnge1.request_and_response.CommandType;
 import org.Gh0st1yAnge1.request_and_response.Request;
@@ -25,7 +25,6 @@ public class ClientCommandManager {
     private final InputManager inputManager;
     private final RouteBuilder routeBuilder;
 
-    // Стек для защиты от рекурсивных скриптов — хранит canonical path файлов
     private final Set<String> scriptStack = new HashSet<>();
 
     public ClientCommandManager(InputManager inputManager, RouteBuilder routeBuilder) {

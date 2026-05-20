@@ -64,6 +64,14 @@ public class FileManager {
             return ("File path is not found.");
         }
 
+        File file = new File(filePath);
+        File parentDir = file.getParentFile();
+        if (parentDir != null && !parentDir.exists()){
+            if (!parentDir.mkdirs()){
+                return "Failed to create directories: " + filePath;
+            }
+        }
+
         try(BufferedOutputStream bos = new BufferedOutputStream(
                 new FileOutputStream(filePath))){
 

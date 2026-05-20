@@ -38,7 +38,7 @@ public class AuditConsumerApp {
 
     public static void main(String[] args) {
         String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
-        String dbPath           = args.length > 1 ? args[1] : "./audit.db";
+        String dbPath = args.length > 1 ? args[1] : "./audit.db";
 
         logger.info("Starting AuditConsumer. Kafka: " + bootstrapServers + ", DB: " + dbPath);
 
@@ -58,7 +58,7 @@ public class AuditConsumerApp {
 
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,  bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG,           GROUP_ID);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,   StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 

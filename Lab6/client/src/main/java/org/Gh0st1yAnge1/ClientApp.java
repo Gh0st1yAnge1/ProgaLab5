@@ -1,6 +1,6 @@
 package org.Gh0st1yAnge1;
 
-import org.Gh0st1yAnge1.command.Insert;
+import org.Gh0st1yAnge1.client_commands.Insert;
 import org.Gh0st1yAnge1.exceptions.InputCancelledException;
 import org.Gh0st1yAnge1.manager.*;
 import org.Gh0st1yAnge1.request_and_response.CommandType;

@@ -1,6 +1,6 @@
 package org.Gh0st1yAnge1;
 
-import org.Gh0st1yAnge1.command.*;
+import org.Gh0st1yAnge1.client_commands.*;
 import org.Gh0st1yAnge1.manager.CollectionManager;
 import org.Gh0st1yAnge1.manager.FileManager;
 import org.Gh0st1yAnge1.request_and_response.Request;
